@@ -1,1 +1,36 @@
-[]
+[
+  {
+    "id": "efdb01e0-bb9c-40b0-921a-d514374833bf",
+    "name": "דנה גרינברג",
+    "phone": "052-8551260",
+    "email": "danagreenberg2001@gmail.com",
+    "passwordHash": "$2a$10$k6jBdJVBKCHuPefNI4Y3guF6wrQJy.QQwLlPQZTIQBQtgD9AV0df.",
+    "role": "family",
+    "address": "הצבעוני 7",
+    "createdAt": "2026-06-21T15:38:28.572Z"
+  },
+  {
+    "id": "e89842ce-60bb-4c7c-8b5a-ef1843697202",
+    "name": "Test User",
+    "phone": "0509999999",
+    "email": "newtest2@example.com",
+    "passwordHash": "$2a$10$qR9.ERQyeHJ68EiDWmCXlO7aSSUrk99y30mAEqzdEHi3Do9jNSCVO",
+    "role": "family",
+    "address": "Tel Aviv",
+    "createdAt": "2026-06-21T15:43:43.602Z"
+  },
+  {
+    "id": "112dc64d-27af-4080-8f41-586be5f49f16",
+    "name": "ירדן",
+    "phone": "052-8551269",
+    "email": "danagreenberg@gmail.com",
+    "passwordHash": "$2a$10$DTC8seH2843clHu9C28yFePoHeHvdJ4cqaCC8zMkIvaLekIqb82xu",
+    "role": "sitter",
+    "address": "הצבעוני 8",
+    "birthdate": "2002-07-11",
+    "experience": "2",
+    "area": "ta",
+    "rate": 100,
+    "createdAt": "2026-06-21T15:55:49.959Z"
+  }
+]
