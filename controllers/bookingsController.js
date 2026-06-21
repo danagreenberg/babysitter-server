@@ -18,6 +18,22 @@ const getAllBookings = (req, res, next) => {
   }
 };
 
+// GET /api/bookings/current  ── המשמרת הפעילה האחרונה + נתוני הבייביסיטר (JOIN). ציבורי, לתצוגת הדמו.
+const getCurrentBooking = (req, res, next) => {
+  try {
+    const bookings = readDB('bookings');
+    const sitters  = readDB('sitters');
+
+    const active = [...bookings].reverse().find(b => b.status !== 'cancelled');
+    if (!active) return res.status(404).json({ success: false, error: 'אין משמרת פעילה' });
+
+    const sitter = sitters.find(s => s.id === active.sitterId) || null;
+    res.json({ success: true, data: { ...active, sitter } });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // GET /api/bookings/:id
 const getBookingById = (req, res, next) => {
   try {
@@ -52,7 +68,7 @@ const createBooking = (req, res, next) => {
       return res.status(400).json({ success: false, error: 'הבייביסיטר כבר תפוסה בזמן זה' });
     }
 
-    const hours      = (new Date(scheduledEnd) - new Date(scheduledStart)) / 3_600_000;
+    const hours      = (new Date(scheduledEnd) - new Date(scheduledStart)) / 3600000;
     const hourlyRate = rate || 60;
     const total      = Math.round(hours * hourlyRate);
 
@@ -60,7 +76,7 @@ const createBooking = (req, res, next) => {
       id:             uuidv4(),
       sitterId,
       familyId,
-      status:         'requested',   // requested → confirmed → in_progress → completed / cancelled
+      status:         'requested',
       scheduledStart,
       scheduledEnd,
       rate:           hourlyRate,
@@ -130,5 +146,5 @@ const getBookingsByFamily = (req, res, next) => {
 
 module.exports = {
   getAllBookings, getBookingById, createBooking,
-  updateBooking, deleteBooking, getBookingsByFamily
+  updateBooking, deleteBooking, getBookingsByFamily, getCurrentBooking
 };
