@@ -3,10 +3,28 @@ const jwt    = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const { readDB, writeDB } = require('../config/db');
 
+// אזורי פעילות → תווית להצגה + מרכז גיאוגרפי למפה
+const AREAS = {
+  ta:  { label: 'תל אביב',     lat: 32.0853, lng: 34.7818 },
+  gd:  { label: 'גוש דן',      lat: 32.0800, lng: 34.8400 },
+  jer: { label: 'ירושלים',     lat: 31.7683, lng: 35.2137 },
+  hfa: { label: 'חיפה והצפון', lat: 32.7940, lng: 34.9896 },
+  sth: { label: 'הדרום',       lat: 31.2518, lng: 34.7913 }
+};
+
+// חישוב גיל מתאריך לידה
+const calcAge = (bd) => {
+  if (!bd) return null;
+  const d = new Date(bd);
+  if (isNaN(d.getTime())) return null;
+  return Math.floor((Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000));
+};
+
 // POST /api/auth/register
 const register = async (req, res, next) => {
   try {
-    const { name, phone, email, password, role, address } = req.body;
+    const { name, phone, email, password, role, address,
+            children, birthdate, experience, area, rate } = req.body;
 
     if (!name || !phone || !email || !password || !role) {
       return res.status(400).json({ success: false, error: 'יש למלא את כל השדות החובה' });
@@ -29,11 +47,44 @@ const register = async (req, res, next) => {
       passwordHash,
       role,
       address: address || '',
+      // role-specific fields
+      ...(role === 'family'
+        ? { children: children || 1 }
+        : { birthdate: birthdate || '', experience: experience || '', area: area || '', rate: rate || 0 }
+      ),
       createdAt: new Date().toISOString()
     };
 
     users.push(newUser);
     writeDB('users', users);
+
+    // בייביסיטר שנרשם – נוסף אוטומטית לרשימת הבייביסיטרים (יופיע בדף החיפוש)
+    if (role === 'sitter') {
+      const sitters = readDB('sitters');
+      const geo = AREAS[area] || { label: address || 'לא צוין', lat: null, lng: null };
+      const jitter = () => (Math.random() - 0.5) * 0.03; // ~1.5 ק"מ פיזור כדי שלא יתלכדו
+
+      const newSitter = {
+        id:          uuidv4(),
+        userId:      newUser.id,
+        name,
+        age:         calcAge(birthdate),
+        rate:        parseInt(rate) || 0,
+        experience:  parseInt(experience) || 0,
+        rating:      0,
+        ratingCount: 0,
+        neighborhood: geo.label,
+        lat:         geo.lat !== null ? geo.lat + jitter() : null,
+        lng:         geo.lng !== null ? geo.lng + jitter() : null,
+        bio:         `שלום, אני ${name}. בייביסיטר/ית באזור ${geo.label}.`,
+        img:         `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70) + 1}`,
+        verified:    false,
+        createdAt:   new Date().toISOString()
+      };
+
+      sitters.push(newSitter);
+      writeDB('sitters', sitters);
+    }
 
     const token = jwt.sign(
       { id: newUser.id, role: newUser.role },
