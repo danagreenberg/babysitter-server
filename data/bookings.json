@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "id": "bk-001",
+    "sitterId": "sit-001",
+    "familyId": "fam-001",
+    "status": "in_progress",
+    "scheduledStart": "2026-06-21T09:00:00",
+    "scheduledEnd": "2026-06-21T12:00:00",
+    "rate": 60,
+    "total": 180,
+    "checkIn": "2026-06-21T09:00:00",
+    "checkOut": null,
+    "paymentMethod": null,
+    "createdAt": "2026-06-21T08:30:00.000Z"
+  }
+]
