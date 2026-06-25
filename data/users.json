@@ -32,5 +32,16 @@
     "area": "ta",
     "rate": 100,
     "createdAt": "2026-06-21T15:55:49.959Z"
+  },
+  {
+    "id": "56aedc7e-ace8-4446-a05a-718e5f219fbf",
+    "name": "or",
+    "phone": "054-3569248",
+    "email": "or@gmail.com",
+    "passwordHash": "$2a$10$nvDSU/kS5I8ql.yNUjJhbetC9.Iqk5waPaNCADUBnZsplCEDNPqxi",
+    "role": "family",
+    "address": "מיתר",
+    "children": 3,
+    "createdAt": "2026-06-25T14:37:17.928Z"
   }
 ]
