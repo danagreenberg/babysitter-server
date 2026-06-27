@@ -1,6 +1,5 @@
 const express = require('express');
 const cors    = require('cors');
-const path    = require('path');
 
 const authRoutes     = require('./routes/auth');
 const sittersRoutes  = require('./routes/sitters');
@@ -15,9 +14,6 @@ const app = express();
 // ── Middleware ──
 app.use(cors());
 app.use(express.json());
-
-// ── Serve client files (HTML/CSS/JS) from parent folder ──
-app.use(express.static(path.join(__dirname, '..')));
 
 // ── API Routes ──
 app.use('/api/auth',     authRoutes);
