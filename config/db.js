@@ -1,17 +1,13 @@
-const fs   = require('fs');
-const path = require('path');
+const mongoose = require('mongoose');
 
-const DATA_DIR = path.join(__dirname, '../data');
-
-const readDB = (collection) => {
-  const filePath = path.join(DATA_DIR, `${collection}.json`);
-  if (!fs.existsSync(filePath)) return [];
-  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log('✅ MongoDB connected');
+  } catch (err) {
+    console.error('❌ MongoDB connection error:', err.message);
+    process.exit(1);   // עוצר את השרת אם החיבור נכשל
+  }
 };
 
-const writeDB = (collection, data) => {
-  const filePath = path.join(DATA_DIR, `${collection}.json`);
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
-};
-
-module.exports = { readDB, writeDB };
+module.exports = { connectDB };

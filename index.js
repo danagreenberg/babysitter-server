@@ -1,8 +1,12 @@
+require('dns').setServers(['8.8.8.8', '8.8.4.4']);
+require('dotenv').config();   // ← חייב להיות ראשון, לפני שמשתמשים ב-MONGO_URI
 const app = require('./app');
-require('dotenv').config();
+const { connectDB } = require('./config/db');
 
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`🍼 Babysitter server running on port ${PORT}`);
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`🍼 Babysitter server running on port ${PORT}`);
+  });
 });

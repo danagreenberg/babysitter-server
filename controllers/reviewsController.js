@@ -1,11 +1,10 @@
-const { v4: uuidv4 } = require('uuid');
-const { readDB, writeDB } = require('../config/db');
+const Review = require('../models/Review');   // ← במקום readDB/writeDB + uuid
+const Sitter = require('../models/Sitter');
 
 // GET /api/reviews/sitter/:sitterId
-const getReviewsBySitter = (req, res, next) => {
+const getReviewsBySitter = async (req, res, next) => {
   try {
-    const reviews = readDB('reviews');
-    const result  = reviews.filter(r => r.sitterId === req.params.sitterId);
+    const result = await Review.find({ sitterId: req.params.sitterId });
     res.json({ success: true, count: result.length, data: result });
   } catch (err) {
     next(err);
@@ -13,7 +12,7 @@ const getReviewsBySitter = (req, res, next) => {
 };
 
 // POST /api/reviews
-const createReview = (req, res, next) => {
+const createReview = async (req, res, next) => {
   try {
     const {
       sitterId, familyId, bookingId,
@@ -25,36 +24,28 @@ const createReview = (req, res, next) => {
       return res.status(400).json({ success: false, error: 'חסרים שדות חובה לביקורת' });
     }
 
-    const reviews = readDB('reviews');
-
-    if (reviews.find(r => r.bookingId === bookingId)) {
+    // ביקורת אחת לכל הזמנה
+    const existing = await Review.findOne({ bookingId });
+    if (existing) {
       return res.status(400).json({ success: false, error: 'כבר קיימת ביקורת להזמנה זו' });
     }
 
-    const newReview = {
-      id:            uuidv4(),
-      sitterId,
-      familyId,
-      bookingId,
+    const newReview = await Review.create({
+      sitterId, familyId, bookingId,
       ratingSitter:  parseInt(ratingSitter),
-      ratingFamily:  parseInt(ratingFamily)  || 0,
+      ratingFamily:  parseInt(ratingFamily) || 0,
       commentSitter: commentSitter || '',
       commentFamily: commentFamily || '',
-      createdAt:     new Date().toISOString()
-    };
+    });
 
-    reviews.push(newReview);
-    writeDB('reviews', reviews);
-
-    // Auto-update sitter's avg rating
-    const sitters     = readDB('sitters');
-    const sitterIndex = sitters.findIndex(s => s.id === sitterId);
-    if (sitterIndex !== -1) {
-      const allSitterReviews = reviews.filter(r => r.sitterId === sitterId);
+    // עדכון אוטומטי של דירוג הבייביסיטר
+    const allSitterReviews = await Review.find({ sitterId });
+    if (allSitterReviews.length) {
       const avg = allSitterReviews.reduce((sum, r) => sum + r.ratingSitter, 0) / allSitterReviews.length;
-      sitters[sitterIndex].rating      = Math.round(avg * 10) / 10;
-      sitters[sitterIndex].ratingCount = allSitterReviews.length;
-      writeDB('sitters', sitters);
+      await Sitter.findByIdAndUpdate(sitterId, {
+        rating:      Math.round(avg * 10) / 10,
+        ratingCount: allSitterReviews.length
+      });
     }
 
     res.status(201).json({ success: true, data: newReview });

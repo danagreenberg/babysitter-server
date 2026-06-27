@@ -1,16 +1,20 @@
-const { v4: uuidv4 } = require('uuid');
-const { readDB, writeDB } = require('../config/db');
+const Sitter  = require('../models/Sitter');   // ← במקום readDB/writeDB
+const Booking = require('../models/Booking');
+const Review  = require('../models/Review');
 
-// GET /api/sitters  ── Complex query #1: search & filter
-const getAllSitters = (req, res, next) => {
+// GET /api/sitters  ── חיפוש וסינון
+const getAllSitters = async (req, res, next) => {   // ← הוספנו async
   try {
     const { name, hood, maxPrice, minRating } = req.query;
-    let sitters = readDB('sitters');
 
-    if (name)      sitters = sitters.filter(s => s.name.includes(name));
-    if (hood)      sitters = sitters.filter(s => s.neighborhood.includes(hood));
-    if (maxPrice)  sitters = sitters.filter(s => s.rate <= parseInt(maxPrice));
-    if (minRating) sitters = sitters.filter(s => s.rating >= parseFloat(minRating));
+    // בונים אובייקט query במקום סדרת filter
+    const query = {};
+    if (name)      query.name         = { $regex: name };          // מכיל את הטקסט
+    if (hood)      query.neighborhood = { $regex: hood };
+    if (maxPrice)  query.rate         = { $lte: parseInt(maxPrice) };   // קטן/שווה
+    if (minRating) query.rating       = { $gte: parseFloat(minRating) }; // גדול/שווה
+
+    const sitters = await Sitter.find(query);   // ← שאילתה אחת במקום filter ידני
 
     res.json({ success: true, count: sitters.length, data: sitters });
   } catch (err) {
@@ -19,10 +23,9 @@ const getAllSitters = (req, res, next) => {
 };
 
 // GET /api/sitters/:id
-const getSitterById = (req, res, next) => {
+const getSitterById = async (req, res, next) => {
   try {
-    const sitters = readDB('sitters');
-    const sitter  = sitters.find(s => s.id === req.params.id);
+    const sitter = await Sitter.findById(req.params.id);   // ← במקום .find(s => s.id===...)
     if (!sitter) return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
     res.json({ success: true, data: sitter });
   } catch (err) {
@@ -31,7 +34,7 @@ const getSitterById = (req, res, next) => {
 };
 
 // POST /api/sitters
-const createSitter = (req, res, next) => {
+const createSitter = async (req, res, next) => {
   try {
     const { name, age, rate, experience, neighborhood, lat, lng, bio, img } = req.body;
 
@@ -39,27 +42,21 @@ const createSitter = (req, res, next) => {
       return res.status(400).json({ success: false, error: 'שם, תעריף ושכונה הם שדות חובה' });
     }
 
-    const sitters   = readDB('sitters');
-    const newSitter = {
-      id: uuidv4(),
+    // create = יוצר ושומר בבת אחת (במקום push + writeDB)
+    const newSitter = await Sitter.create({
       userId: req.user?.id || null,
       name,
-      age:         age || null,
-      rate:        parseInt(rate),
-      experience:  experience || 0,
-      rating:      0,
-      ratingCount: 0,
+      age:        age || null,
+      rate:       parseInt(rate),
+      experience: experience || 0,
       neighborhood,
-      lat:         lat || null,
-      lng:         lng || null,
-      bio:         bio || '',
-      img:         img || '',
-      verified:    false,
-      createdAt:   new Date().toISOString()
-    };
+      lat:        lat || null,
+      lng:        lng || null,
+      bio:        bio || '',
+      img:        img || '',
+      // rating, ratingCount, verified — באים מ-default במודל, לא צריך לציין
+    });
 
-    sitters.push(newSitter);
-    writeDB('sitters', sitters);
     res.status(201).json({ success: true, data: newSitter });
   } catch (err) {
     next(err);
@@ -67,61 +64,57 @@ const createSitter = (req, res, next) => {
 };
 
 // PUT /api/sitters/:id
-const updateSitter = (req, res, next) => {
+const updateSitter = async (req, res, next) => {
   try {
-    const sitters = readDB('sitters');
-    const index   = sitters.findIndex(s => s.id === req.params.id);
-    if (index === -1) return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
-
-    sitters[index] = { ...sitters[index], ...req.body, id: req.params.id };
-    writeDB('sitters', sitters);
-    res.json({ success: true, data: sitters[index] });
+    // findByIdAndUpdate מחליף את: findIndex + מיזוג + writeDB
+    const sitter = await Sitter.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }   // ← מחזיר את הגרסה המעודכנת (ברירת המחדל היא הישנה)
+    );
+    if (!sitter) return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
+    res.json({ success: true, data: sitter });
   } catch (err) {
     next(err);
   }
 };
 
 // DELETE /api/sitters/:id
-const deleteSitter = (req, res, next) => {
+const deleteSitter = async (req, res, next) => {
   try {
-    let sitters = readDB('sitters');
-    if (!sitters.find(s => s.id === req.params.id)) {
-      return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
-    }
-    sitters = sitters.filter(s => s.id !== req.params.id);
-    writeDB('sitters', sitters);
+    const sitter = await Sitter.findByIdAndDelete(req.params.id);   // ← במקום filter + writeDB
+    if (!sitter) return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
     res.json({ success: true, data: {} });
   } catch (err) {
     next(err);
   }
 };
 
-// GET /api/sitters/:id/stats  ── Complex query #2: aggregation
-const getSitterStats = (req, res, next) => {
+// GET /api/sitters/:id/stats  ── אגרגציה
+const getSitterStats = async (req, res, next) => {
   try {
-    const sitters  = readDB('sitters');
-    const bookings = readDB('bookings');
-    const reviews  = readDB('reviews');
-
-    const sitter = sitters.find(s => s.id === req.params.id);
+    const sitter = await Sitter.findById(req.params.id);
     if (!sitter) return res.status(404).json({ success: false, error: 'בייביסיטר לא נמצאה' });
 
-    const sitterBookings = bookings.filter(b => b.sitterId === req.params.id);
-    const sitterReviews  = reviews.filter(r => r.sitterId === req.params.id);
-    const completed      = sitterBookings.filter(b => b.status === 'completed');
-    const totalEarnings  = completed.reduce((sum, b) => sum + (b.total || 0), 0);
-    const avgRating      = sitterReviews.length
+    // שלוש שאילתות במקום שלוש readDB
+    const sitterBookings = await Booking.find({ sitterId: req.params.id });
+    const sitterReviews  = await Review.find({ sitterId: req.params.id });
+
+    // החישובים נשארים זהים — JS רגיל
+    const completed     = sitterBookings.filter(b => b.status === 'completed');
+    const totalEarnings = completed.reduce((sum, b) => sum + (b.total || 0), 0);
+    const avgRating     = sitterReviews.length
       ? (sitterReviews.reduce((s, r) => s + r.ratingSitter, 0) / sitterReviews.length).toFixed(1)
       : 0;
 
     res.json({
       success: true,
       data: {
-        sitterId:       req.params.id,
+        sitterId:        req.params.id,
         completedShifts: completed.length,
         totalEarnings,
-        avgRating:      parseFloat(avgRating),
-        reviewCount:    sitterReviews.length
+        avgRating:       parseFloat(avgRating),
+        reviewCount:     sitterReviews.length
       }
     });
   } catch (err) {
