@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
-  sitterId:       { type: String, required: true },
-  familyId:       { type: String, required: true },
+  sitterId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  familyId:       { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   status:         { type: String, default: 'requested' },
   scheduledStart: { type: String, required: true },
   scheduledEnd:   { type: String, required: true },
