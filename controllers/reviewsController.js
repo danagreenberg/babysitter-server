@@ -11,37 +11,33 @@ const getReviewsBySitter = async (req, res, next) => {
   }
 };
 
-// POST /api/reviews
+// POST /api/reviews  (protected — המשתמש המחובר הוא הכותב)
 const createReview = async (req, res, next) => {
   try {
-    const {
-      sitterId, familyId, bookingId,
-      ratingSitter, ratingFamily,
-      commentSitter, commentFamily
-    } = req.body;
+    const { sitterId, rating, text } = req.body;
+    const familyId = req.user.id;   // הכותב מגיע מהטוקן
 
-    if (!sitterId || !familyId || !bookingId || !ratingSitter) {
-      return res.status(400).json({ success: false, error: 'חסרים שדות חובה לביקורת' });
+    if (!sitterId || !rating) {
+      return res.status(400).json({ success: false, error: 'יש לבחור בייביסיטר ודירוג' });
     }
 
-    // ביקורת אחת לכל הזמנה
-    const existing = await Review.findOne({ bookingId });
+    // ביקורת אחת לכל משתמש לכל בייביסיטר
+    const existing = await Review.findOne({ sitterId, familyId });
     if (existing) {
-      return res.status(400).json({ success: false, error: 'כבר קיימת ביקורת להזמנה זו' });
+      return res.status(400).json({ success: false, error: 'כבר דירגת בייביסיטר זו' });
     }
 
     const newReview = await Review.create({
-      sitterId, familyId, bookingId,
-      ratingSitter:  parseInt(ratingSitter),
-      ratingFamily:  parseInt(ratingFamily) || 0,
-      commentSitter: commentSitter || '',
-      commentFamily: commentFamily || '',
+      sitterId,
+      familyId,
+      rating: parseInt(rating),
+      text:   text || '',
     });
 
-    // עדכון אוטומטי של דירוג הבייביסיטר
+    // עדכון אוטומטי של דירוג הבייביסיטר (ממוצע)
     const allSitterReviews = await Review.find({ sitterId });
     if (allSitterReviews.length) {
-      const avg = allSitterReviews.reduce((sum, r) => sum + r.ratingSitter, 0) / allSitterReviews.length;
+      const avg = allSitterReviews.reduce((sum, r) => sum + r.rating, 0) / allSitterReviews.length;
       await Sitter.findByIdAndUpdate(sitterId, {
         rating:      Math.round(avg * 10) / 10,
         ratingCount: allSitterReviews.length
