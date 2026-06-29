@@ -14,6 +14,7 @@ const userSchema = new mongoose.Schema({
 
   // שדות של sitter
   birthdate:    String,
+  age:          Number,
   experience:   String,
   area:         String,
   rate:         Number,

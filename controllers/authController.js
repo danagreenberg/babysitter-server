@@ -129,4 +129,45 @@ const getMe = async (req, res, next) => {
   }
 };
 
-module.exports = { register, login, getMe };
+// PUT /api/auth/updatedetails  (protected)
+const updateDetails = async (req, res, next) => {
+  try {
+    const { name, phone, address, children, age, rate, experience } = req.body;
+
+    // בונים אובייקט עדכון רק מהשדות שנשלחו
+    const updates = {};
+    if (name       !== undefined) updates.name = name;
+    if (phone      !== undefined) updates.phone = phone;
+    if (address    !== undefined) updates.address = address;
+    if (children   !== undefined) updates.children = children;
+    if (age        !== undefined) updates.age = parseInt(age) || null;
+    if (rate       !== undefined) updates.rate = parseInt(rate) || 0;
+    if (experience !== undefined) updates.experience = experience;
+
+    // תמונה חדשה (אם הועלתה) → base64
+    if (req.file) {
+      updates.img = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+    }
+
+    const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
+    if (!user) return res.status(404).json({ success: false, error: 'משתמש לא נמצא' });
+
+    // אם זו בייביסיטר — מסנכרנים גם את הפרופיל הציבורי
+    if (user.role === 'sitter') {
+      const sitterUpdates = {};
+      if (name       !== undefined) sitterUpdates.name = name;
+      if (age        !== undefined) sitterUpdates.age = parseInt(age) || null;
+      if (rate       !== undefined) sitterUpdates.rate = parseInt(rate) || 0;
+      if (experience !== undefined) sitterUpdates.experience = parseInt(experience) || 0;
+      if (updates.img) sitterUpdates.img = updates.img;
+      await Sitter.findOneAndUpdate({ userId: user._id }, sitterUpdates);
+    }
+
+    const { passwordHash: _, ...userOut } = user.toObject();
+    res.json({ success: true, data: userOut });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, getMe, updateDetails };
