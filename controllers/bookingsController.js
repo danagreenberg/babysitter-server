@@ -46,35 +46,46 @@ const getBookingById = async (req, res, next) => {
 };
 
 // POST /api/bookings
-const createBooking = async (req, res, next) => {
+cconst createBooking = async (req, res, next) => {
   try {
-    const { sitterId, date, startTime, endTime } = req.body;
+    // 1. שינינו את החילוץ כדי שיתאים למה שהדפדפן שולח
+    const { sitterId, scheduledStart, scheduledEnd } = req.body; 
 
-    if (!sitterId || !date || !startTime || !endTime) {
+    // 2. עדכנו את הבדיקה: בודקים את השדות הנכונים
+    if (!sitterId || !scheduledStart || !scheduledEnd) {
       return res.status(400).json({ success: false, error: 'חסרים שדות חובה להזמנה' });
     }
 
-    // בדיקת חפיפה – שולפים את ההזמנות של אותה בייביסיטר ובודקים ב-JS
+    // 3. חילוץ ה-familyId מהטוקן (הנחה שיש Middleware שמציב את req.user)
+    const familyId = req.user.id; 
+
+    // בדיקת חפיפה (השתמשנו בשמות המשתנים הנכונים)
     const sitterBookings = await Booking.find({ sitterId, status: { $ne: 'cancelled' } });
     const conflict = sitterBookings.find(b =>
       new Date(b.scheduledStart) < new Date(scheduledEnd) &&
       new Date(b.scheduledEnd)   > new Date(scheduledStart)
     );
+    
     if (conflict) {
       return res.status(400).json({ success: false, error: 'הבייביסיטר כבר תפוסה בזמן זה' });
     }
 
-    const hours      = (new Date(scheduledEnd) - new Date(scheduledStart)) / 3600000;
-    const hourlyRate = rate || 60;
-    const total      = Math.round(hours * hourlyRate);
+    // חישוב שעות ועלות
+    const hours = (new Date(scheduledEnd) - new Date(scheduledStart)) / 3600000;
+    
+    // שליפת התעריף של הבייביסיטר (בשביל החישוב)
+    const sitter = await Sitter.findById(sitterId);
+    const hourlyRate = sitter ? sitter.rate : 60;
+    const total = Math.round(hours * hourlyRate);
 
     const newBooking = await Booking.create({
-      sitterId, familyId,
+      sitterId, 
+      familyId, // עכשיו זה מגיע מהטוקן
       status: 'requested',
-      scheduledStart, scheduledEnd,
+      scheduledStart, 
+      scheduledEnd,
       rate: hourlyRate,
-      total,
-      // checkIn, checkOut, paymentMethod — מ-default במודל
+      total
     });
 
     res.status(201).json({ success: true, data: newBooking });
