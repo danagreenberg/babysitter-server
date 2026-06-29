@@ -11,12 +11,15 @@ const userSchema = new mongoose.Schema({
 
   // שדות של family
   children:     Number,
+  lat:          Number,
+  lng:          Number,
 
   // שדות של sitter
-  birthdate:    String,
   age:          Number,
   experience:   String,
   area:         String,
+  lat:          Number,
+  lng:          Number,
   rate:         Number,
 }, { timestamps: true });
 

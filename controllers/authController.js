@@ -23,69 +23,69 @@ const calcAge = (bd) => {
 // POST /api/auth/register
 const register = async (req, res, next) => {
   try {
-    const { name, phone, email, password, role, address,
-            children, age, lat, lng, experience, rate } = req.body;
+    // פירוק כל הנתונים שמגיעים מה-FormData (כולל החדשים)
+    const { 
+      name, phone, email, password, role, address, 
+      children, birthdate, experience, area, rate, lat, lng, age 
+    } = req.body;
 
     if (!name || !phone || !email || !password || !role) {
       return res.status(400).json({ success: false, error: 'יש למלא את כל השדות החובה' });
     }
-    if (!['family', 'sitter'].includes(role)) {
-      return res.status(400).json({ success: false, error: 'תפקיד לא תקין' });
-    }
-
-    const existing = await User.findOne({ email });   // ← במקום users.find(...)
+    
+    // בדיקת אימייל קיים
+    const existing = await User.findOne({ email });
     if (existing) {
       return res.status(400).json({ success: false, error: 'אימייל כבר קיים במערכת' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-
-    // התמונה שהועלתה (multer) → מומרת ל-base64 לשמירה במסד
-    const imgData = req.file
-      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+    const imgData = req.file 
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}` 
       : '';
 
-    const newUser = await User.create({   // ← create במקום push + writeDB
+    // יצירת המשתמש - כאן אנחנו שומרים את המיקום (lat/lng) לכולם (משפחה ובייביסיטר)
+    const newUser = await User.create({ 
       name, phone, email, passwordHash, role,
       address: address || '',
       img: imgData,
+      lat: lat ? parseFloat(lat) : null, // נשמר ב-User לשימוש עתידי (חישוב מרחקים)
+      lng: lng ? parseFloat(lng) : null,
       ...(role === 'family'
         ? { children: children || 1 }
         : { birthdate: birthdate || '', experience: experience || '', area: area || '', rate: rate || 0 }
       ),
     });
 
-    // בייביסיטר שנרשם – נוסף אוטומטית לרשימת הבייביסיטרים
-    // בתוך הפונקציה register, בבלוק של if (role === 'sitter'):
-
+    // יצירת פרופיל בייביסיטר (רק אם התפקיד הוא sitter)
     if (role === 'sitter') {
       const geo = AREAS[area] || { label: address || 'לא צוין', lat: null, lng: null };
-      const jitter = () => (Math.random() - 0.5) * 0.03;
-
+      
       await Sitter.create({
         userId:       newUser._id,
         name,
-        // הנה השינוי: משתמשים ישירות ב-age שהגיע מה-req.body
-        age:          age ? parseInt(age) : 0, 
+        // עדיפות לגיל שהגיע מהדפדפן, אחרת חישוב מתאריך לידה
+        age:          age ? parseInt(age) : calcAge(birthdate),
         rate:         parseInt(rate) || 0,
         experience:   parseInt(experience) || 0,
         neighborhood: address || geo.label,
-        lat:          lat ? parseFloat(lat) : (geo.lat ? geo.lat + jitter() : null),
-        lng:          lng ? parseFloat(lng) : (geo.lng ? geo.lng + jitter() : null),
+        // עדיפות לקואורדינטות מהדפדפן
+        lat:          lat ? parseFloat(lat) : geo.lat,
+        lng:          lng ? parseFloat(lng) : geo.lng,
         bio:          `שלום, אני ${name}. בייביסיטר/ית באזור ${geo.label}.`,
         img:          imgData || `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70) + 1}`,
       });
-}
     }
 
     const token = jwt.sign(
-      { id: newUser._id, role: newUser.role },   // ← _id במקום id
+      { id: newUser._id, role: newUser.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
-    const { passwordHash: _, ...userOut } = newUser.toObject();   // ← toObject() לפני strip
+    const { passwordHash: _, ...userOut } = newUser.toObject();
     res.status(201).json({ success: true, data: { user: userOut, token } });
+
   } catch (err) {
     next(err);
   }
