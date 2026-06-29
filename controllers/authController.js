@@ -24,7 +24,7 @@ const calcAge = (bd) => {
 const register = async (req, res, next) => {
   try {
     const { name, phone, email, password, role, address,
-            children, birthdate, experience, area, rate } = req.body;
+            children, age, lat, lng, experience, rate } = req.body;
 
     if (!name || !phone || !email || !password || !role) {
       return res.status(400).json({ success: false, error: 'יש למלא את כל השדות החובה' });
@@ -56,23 +56,26 @@ const register = async (req, res, next) => {
     });
 
     // בייביסיטר שנרשם – נוסף אוטומטית לרשימת הבייביסיטרים
+    // בתוך הפונקציה register, בבלוק של if (role === 'sitter'):
+
     if (role === 'sitter') {
       const geo = AREAS[area] || { label: address || 'לא צוין', lat: null, lng: null };
       const jitter = () => (Math.random() - 0.5) * 0.03;
 
       await Sitter.create({
-        userId:       newUser._id,           // ← הקישור ל-user (עכשיו _id)
+        userId:       newUser._id,
         name,
-        age:          calcAge(birthdate),
+        // הנה השינוי: משתמשים ישירות ב-age שהגיע מה-req.body
+        age:          age ? parseInt(age) : 0, 
         rate:         parseInt(rate) || 0,
         experience:   parseInt(experience) || 0,
-        neighborhood: geo.label,
-        lat:          geo.lat !== null ? geo.lat + jitter() : null,
-        lng:          geo.lng !== null ? geo.lng + jitter() : null,
+        neighborhood: address || geo.label,
+        lat:          lat ? parseFloat(lat) : (geo.lat ? geo.lat + jitter() : null),
+        lng:          lng ? parseFloat(lng) : (geo.lng ? geo.lng + jitter() : null),
         bio:          `שלום, אני ${name}. בייביסיטר/ית באזור ${geo.label}.`,
         img:          imgData || `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70) + 1}`,
-        // rating, ratingCount, verified — מ-default במודל
       });
+}
     }
 
     const token = jwt.sign(
