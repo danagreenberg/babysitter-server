@@ -7,6 +7,7 @@ const userSchema = new mongoose.Schema({
   passwordHash: { type: String, required: true },
   role:         { type: String, enum: ['family', 'sitter'], required: true },
   address:      { type: String, default: '' },
+  img:          { type: String, default: '' },   // תמונת פרופיל (base64)
 
   // שדות של family
   children:     Number,

@@ -40,9 +40,15 @@ const register = async (req, res, next) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // התמונה שהועלתה (multer) → מומרת ל-base64 לשמירה במסד
+    const imgData = req.file
+      ? `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`
+      : '';
+
     const newUser = await User.create({   // ← create במקום push + writeDB
       name, phone, email, passwordHash, role,
       address: address || '',
+      img: imgData,
       ...(role === 'family'
         ? { children: children || 1 }
         : { birthdate: birthdate || '', experience: experience || '', area: area || '', rate: rate || 0 }
@@ -64,7 +70,7 @@ const register = async (req, res, next) => {
         lat:          geo.lat !== null ? geo.lat + jitter() : null,
         lng:          geo.lng !== null ? geo.lng + jitter() : null,
         bio:          `שלום, אני ${name}. בייביסיטר/ית באזור ${geo.label}.`,
-        img:          `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70) + 1}`,
+        img:          imgData || `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70) + 1}`,
         // rating, ratingCount, verified — מ-default במודל
       });
     }
