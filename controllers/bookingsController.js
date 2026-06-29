@@ -46,7 +46,7 @@ const getBookingById = async (req, res, next) => {
 };
 
 // POST /api/bookings
-cconst createBooking = async (req, res, next) => {
+const createBooking = async (req, res, next) => {
   try {
     // 1. שינינו את החילוץ כדי שיתאים למה שהדפדפן שולח
     const { sitterId, scheduledStart, scheduledEnd } = req.body; 
