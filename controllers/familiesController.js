@@ -24,7 +24,7 @@ const getFamilyById = async (req, res, next) => {
 // POST /api/families
 const createFamily = async (req, res, next) => {
   try {
-    const { parentName, phone, address, children } = req.body;
+    const { parentName, phone, address, children, lat, lng, } = req.body;
     if (!parentName || !phone) {
       return res.status(400).json({ success: false, error: 'שם הורה וטלפון הם שדות חובה' });
     }
@@ -33,6 +33,8 @@ const createFamily = async (req, res, next) => {
       parentName, phone,
       address:  address  || '',
       children: children || [],
+      lat:        lat || null,
+      lng:        lng || null,
     });
     res.status(201).json({ success: true, data: newFamily });
   } catch (err) {
