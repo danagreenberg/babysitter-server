@@ -48,9 +48,9 @@ const getBookingById = async (req, res, next) => {
 // POST /api/bookings
 const createBooking = async (req, res, next) => {
   try {
-    const { sitterId, familyId, scheduledStart, scheduledEnd, rate } = req.body;
+    const { sitterId, date, startTime, endTime } = req.body;
 
-    if (!sitterId || !familyId || !scheduledStart || !scheduledEnd) {
+    if (!sitterId || !date || !startTime || !endTime) {
       return res.status(400).json({ success: false, error: 'חסרים שדות חובה להזמנה' });
     }
 
